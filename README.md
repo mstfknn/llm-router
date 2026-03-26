@@ -59,7 +59,7 @@ GOOS=darwin GOARCH=arm64 go build -o llm-proxy .
 # Mac (Intel)
 GOOS=darwin GOARCH=amd64 go build -o llm-proxy .
 
-# Linux (DigitalOcean / Proxmox VM)
+# Linux 
 GOOS=linux GOARCH=amd64 go build -o llm-proxy .
 ```
 

@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+var version = "dev" // set via -ldflags at build time
+
 const (
 	maxBodySize       = 100 << 20 // 100MB
 	shutdownTimeout   = 30 * time.Second
@@ -352,6 +354,7 @@ func run() error {
 	}
 
 	logger.Info("llm-proxy starting",
+		"version", version,
 		"addr", listenAddr,
 		"downstream", sanitizeURL(downstreamRaw),
 		"anthropic", "https://api.anthropic.com",
