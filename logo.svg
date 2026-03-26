@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <text x="100" y="115" text-anchor="middle" font-family="monospace" font-size="72" font-weight="bold" fill="#fff" style="letter-spacing:-4px">
+    <tspan fill="#e94560">&lt;</tspan><tspan fill="#0f3460">/</tspan><tspan fill="#533483">&gt;</tspan>
+  </text>
+</svg>

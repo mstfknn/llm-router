@@ -1,6 +1,10 @@
-# llm-proxy
+<p align="center">
+  <img src="logo.svg" alt="llm-proxy" width="120"/>
+</p>
 
-Minimal LLM routing proxy for Claude Code. Zero dependencies, single binary.
+<h1 align="center">llm-proxy</h1>
+
+<p align="center">Minimal LLM routing proxy for Claude Code. Zero dependencies, single binary.</p>
 
 ## Why?
 
