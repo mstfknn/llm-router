@@ -15,7 +15,7 @@ This means you can run an agent team where the orchestrator uses Claude Opus and
 
 ## Why not LiteLLM?
 
-LiteLLM's PyPI package was hit by a supply chain attack in March 2026 (TeamPCP, CVE-2025-26399) — versions containing a credential stealer were published. Not usable in pentest environments.
+LiteLLM's PyPI package was hit by a supply chain [attack](https://securitylabs.datadoghq.com/articles/litellm-compromised-pypi-teampcp-supply-chain-campaign/) in March 2026 — versions containing a credential stealer were published.
 
 ## Architecture
 
