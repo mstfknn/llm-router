@@ -184,6 +184,22 @@ func (m *metrics) snapshot() map[string]uint64 {
 	}
 }
 
+// singleJoiningSlash joins a base path and a request path with exactly one slash.
+func singleJoiningSlash(base, path string) string {
+	if base == "" || base == "/" {
+		return path
+	}
+	baseSlash := strings.HasSuffix(base, "/")
+	pathSlash := strings.HasPrefix(path, "/")
+	switch {
+	case baseSlash && pathSlash:
+		return base + path[1:]
+	case !baseSlash && !pathSlash:
+		return base + "/" + path
+	}
+	return base + path
+}
+
 // proxyTransport is a shared transport with proper timeouts.
 var proxyTransport = &http.Transport{
 	DialContext: (&net.Dialer{
@@ -202,7 +218,7 @@ func proxyTo(w http.ResponseWriter, r *http.Request, body []byte, target *url.UR
 		Director: func(req *http.Request) {
 			req.URL.Scheme = target.Scheme
 			req.URL.Host = target.Host
-			req.URL.Path = r.URL.Path
+			req.URL.Path = singleJoiningSlash(target.Path, r.URL.Path)
 			req.URL.RawQuery = r.URL.RawQuery
 			req.Host = target.Host
 

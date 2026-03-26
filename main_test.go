@@ -432,6 +432,55 @@ func TestEmptyModelRoutesToDownstream(t *testing.T) {
 	}
 }
 
+func TestSingleJoiningSlash(t *testing.T) {
+	tests := []struct {
+		base, path, want string
+	}{
+		{"", "/v1/messages", "/v1/messages"},
+		{"/", "/v1/messages", "/v1/messages"},
+		{"/anthropic", "/v1/messages", "/anthropic/v1/messages"},
+		{"/anthropic/", "/v1/messages", "/anthropic/v1/messages"},
+		{"/anthropic", "v1/messages", "/anthropic/v1/messages"},
+		{"/anthropic/", "v1/messages", "/anthropic/v1/messages"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.base+"+"+tc.path, func(t *testing.T) {
+			got := singleJoiningSlash(tc.base, tc.path)
+			if got != tc.want {
+				t.Errorf("singleJoiningSlash(%q, %q) = %q, want %q", tc.base, tc.path, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDownstreamPathPrefix(t *testing.T) {
+	var receivedPath string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	// Simulate DOWNSTREAM_URL=http://host/anthropic
+	downstreamWithPrefix, _ := url.Parse(backend.URL + "/anthropic")
+	anthropic, _ := url.Parse(backend.URL)
+	handler := &proxyHandler{
+		downstreamURL: downstreamWithPrefix,
+		anthropicURL:  anthropic,
+		limiter:       newRateLimiter(1000, 100),
+	}
+
+	body := `{"model":"gemini/gemini-2.0-flash"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if receivedPath != "/anthropic/v1/messages" {
+		t.Errorf("downstream path = %q, want %q", receivedPath, "/anthropic/v1/messages")
+	}
+}
+
 func TestProxyErrorHandler(t *testing.T) {
 	// Use a URL that will fail to connect
 	badURL, _ := url.Parse("http://127.0.0.1:1") // port 1 — nothing listens here

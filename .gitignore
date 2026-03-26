@@ -13,5 +13,6 @@ Thumbs.db
 *.swo
 *~
 
-# Claude Code local settings
+# Claude Code local settings (personal, not shared)
 .claude/
+test/

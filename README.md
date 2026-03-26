@@ -1,27 +1,128 @@
 # llm-proxy
 
-Minimal LLM routing proxy. Zero dependencies, single binary.
+Minimal LLM routing proxy for Claude Code. Zero dependencies, single binary.
+
+## Why?
+
+Claude Code's agent team and subagent features only support Claude models natively. If you want your subagents to use non-Claude models (Gemini, Qwen, LLaMA, etc.) without paying for a separate Claude API subscription for every agent, you're stuck.
+
+This proxy solves that. It sits between Claude Code and the outside world, inspects the `model` field in each request, and routes accordingly:
+
+- **Claude models** → Anthropic API (pass-through, your existing Claude subscription)
+- **Everything else** → your downstream provider (Bifrost, Ollama, vLLM — local or remote)
+
+This means you can run an agent team where the orchestrator uses Claude Opus and subagents use Gemini, Qwen, or any model available through your downstream provider — all without extra API keys or subscriptions. The proxy handles routing transparently.
 
 ## Why not LiteLLM?
 
 LiteLLM's PyPI package was hit by a supply chain attack in March 2026 (TeamPCP, CVE-2025-26399) — versions containing a credential stealer were published. Not usable in pentest environments.
 
-Any OpenAI-compatible provider can be used as the downstream target: Bifrost, Ollama, vLLM, etc.
+## Architecture
 
+```text
+Claude Code ──→ llm-proxy (:4000)
+                    │
+                    ├── claude-* / anthropic/*  ──→ Anthropic API (pass-through)
+                    │
+                    └── everything else         ──→ downstream (Bifrost / Ollama / vLLM)
 ```
-Claude Code → llm-proxy → claude-*      → Anthropic API
-                        → other models  → downstream → Ollama (local)
-```
+
+The proxy reads the `model` field from the JSON request body and routes accordingly. Auth headers (API keys) are passed through untouched — the proxy never requires or stores credentials.
 
 ## Routing logic
 
 Model matching is case-insensitive.
 
-| Model prefix    | Backend       |
-|-----------------|---------------|
-| `claude-*`      | Anthropic API |
-| `anthropic/*`   | Anthropic API |
-| everything else | downstream    |
+| Model prefix    | Backend       | Example                                         |
+| --------------- | ------------- | ----------------------------------------------- |
+| `claude-*`      | Anthropic API | `claude-sonnet-4-6`                             |
+| `anthropic/*`   | Anthropic API | `anthropic/claude-3`                            |
+| everything else | downstream    | `gemini/gemini-2.0-flash`, `qwen2.5-coder:32b`  |
+
+## Claude Code Agent Team Integration
+
+The proxy works with Claude Code's agent team feature. The main session uses Claude (routed to Anthropic), while subagents can use non-Claude models (routed to downstream).
+
+### Setup
+
+**1. Project settings** (`.claude/settings.json`):
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:4000",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "gemini/gemini-2.0-flash",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION": "gemini/gemini-2.0-flash",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME": "Gemini 2.0 Flash"
+  },
+  "model": "opus"
+}
+```
+
+**2. Subagent definition** (`.claude/agents/worker.md`):
+
+```markdown
+---
+name: worker
+tools: Read, Write, Bash
+---
+You are a coding assistant.
+```
+
+> **Important:** Do NOT set `model:` in the subagent frontmatter. When omitted, `CLAUDE_CODE_SUBAGENT_MODEL` takes effect and sends the non-Claude model name to the proxy.
+
+**3. Orchestrator instructions** (`CLAUDE.md`):
+
+```markdown
+Delegate coding tasks to the worker subagent.
+```
+
+### How it works
+
+```text
+Claude Code session (opus)
+    │
+    ├── orchestrator requests  ──→ proxy ──→ Anthropic API
+    │   (model: claude-opus-4-6)
+    │
+    └── subagent requests      ──→ proxy ──→ downstream (Bifrost)
+        (model: gemini/gemini-2.0-flash)
+```
+
+### Mixed model subagents
+
+You can have some subagents on Claude and others on non-Claude models:
+
+```markdown
+# .claude/agents/claude-reviewer.md (uses Sonnet → Anthropic)
+---
+name: claude-reviewer
+model: sonnet
+tools: Read, Grep, Glob
+---
+```
+
+```markdown
+# .claude/agents/gemini-coder.md (no model → uses CLAUDE_CODE_SUBAGENT_MODEL → downstream)
+---
+name: gemini-coder
+tools: Read, Write, Bash
+---
+```
+
+- Subagents **with** `model: sonnet/opus/haiku` → Anthropic API
+- Subagents **without** `model:` field → `CLAUDE_CODE_SUBAGENT_MODEL` env var → downstream
+
+### Key env vars for Claude Code
+
+| Variable                              | Purpose                                                          |
+|---------------------------------------|------------------------------------------------------------------|
+| `ANTHROPIC_BASE_URL`                  | Point Claude Code to the proxy                                   |
+| `CLAUDE_CODE_SUBAGENT_MODEL`          | Model name sent for subagents without explicit `model:` field    |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`| Enable agent team feature                                        |
+| `ANTHROPIC_CUSTOM_MODEL_OPTION`       | Add custom model to `/model` picker                              |
+| `ANTHROPIC_CUSTOM_MODEL_OPTION_NAME`  | Display name for custom model in picker                          |
 
 ## Security features
 
@@ -85,22 +186,46 @@ go test -v -race ./...
 ## Usage
 
 ```bash
-# Run
-DOWNSTREAM_URL=http://localhost:8080 \
+# Run with Ollama
+DOWNSTREAM_URL=http://localhost:11434 \
 PROXY_ADDR=:4000 \
 ./llm-proxy
 
-# Point Claude Code to the proxy
-export ANTHROPIC_BASE_URL=http://localhost:4000
-export ANTHROPIC_API_KEY=sk-ant-xxx   # Claude Code sends this in the header, proxy passes it through
-export ANTHROPIC_AUTH_TOKEN=sk-ant-xxx
+# Run with Bifrost (path prefix supported)
+DOWNSTREAM_URL=http://192.168.1.116:8080/anthropic \
+PROXY_ADDR=:4000 \
+./llm-proxy
+```
 
-# Subagent model examples
-# claude-opus-4-6         → Anthropic
-# claude-sonnet-4-6       → Anthropic
-# CLAUDE-haiku-4-5        → Anthropic (case-insensitive)
-# qwen2.5-coder:32b       → downstream → Ollama
-# openai/gpt-4o           → downstream
+### Path prefix
+
+If `DOWNSTREAM_URL` includes a path (e.g. `/anthropic`), it is prepended to the request path:
+
+```text
+DOWNSTREAM_URL=http://host:8080/anthropic
+POST /v1/messages → http://host:8080/anthropic/v1/messages
+```
+
+### Quick test
+
+```bash
+# Health check
+curl http://localhost:4000/health
+
+# Metrics
+curl http://localhost:4000/metrics
+
+# Route to Anthropic
+curl -X POST http://localhost:4000/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{"model":"claude-haiku-4-5-20251001","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}'
+
+# Route to downstream
+curl -X POST http://localhost:4000/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemini/gemini-2.0-flash","messages":[{"role":"user","content":"hi"}]}'
 ```
 
 ## Docker
