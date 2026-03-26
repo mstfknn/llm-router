@@ -50,25 +50,37 @@ Model matching is case-insensitive.
 Requires Go 1.22+.
 
 ```bash
-# Prepare dependencies (one-time)
-go mod tidy
+# Quick build
+make build
 
-# Mac (Apple Silicon)
+# Cross-compile for all platforms
+make release
+
+# Or manually
 GOOS=darwin GOARCH=arm64 go build -o llm-proxy .
-
-# Mac (Intel)
-GOOS=darwin GOARCH=amd64 go build -o llm-proxy .
-
-# Linux 
-GOOS=linux GOARCH=amd64 go build -o llm-proxy .
 ```
 
 ## Test
 
 ```bash
-# Run all tests with race detector
+# Via Makefile
+make test
+
+# Or directly
 go test -v -race ./...
 ```
+
+## Makefile targets
+
+| Target    | Description                                                            |
+|-----------|------------------------------------------------------------------------|
+| `build`   | Build binary for current platform                                      |
+| `release` | Cross-compile for darwin/arm64, darwin/amd64, linux/amd64, linux/arm64 |
+| `test`    | Run all tests with race detector                                       |
+| `vet`     | Run go vet                                                             |
+| `fmt`     | Format code with gofmt                                                 |
+| `run`     | Build and run                                                          |
+| `clean`   | Remove build artifacts                                                 |
 
 ## Usage
 
@@ -98,6 +110,17 @@ docker build -t llm-proxy .
 docker run -e DOWNSTREAM_URL=http://host.docker.internal:8080 \
            -p 4000:4000 llm-proxy
 ```
+
+## Releases
+
+Binaries are automatically built and published via GitHub Actions when a tag is pushed:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Pre-built binaries for macOS (Apple Silicon, Intel) and Linux (amd64, arm64) will be available on the [Releases](../../releases) page with SHA256 checksums.
 
 ## Env vars
 
