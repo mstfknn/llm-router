@@ -369,7 +369,7 @@ func run() error {
 		IdleTimeout:  idleTimeout,
 	}
 
-	logger.Info("llm-proxy starting",
+	logger.Info("llm-router starting",
 		"version", version,
 		"addr", listenAddr,
 		"downstream", sanitizeURL(downstreamRaw),

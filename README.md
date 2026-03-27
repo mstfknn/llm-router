@@ -204,7 +204,7 @@ PROXY_ADDR=:4000 \
 ./llm-router
 
 # Run with Bifrost (path prefix supported)
-DOWNSTREAM_URL=http://192.168.1.116:8080/anthropic \
+DOWNSTREAM_URL=http://your-bifrost-host:8080/anthropic \
 PROXY_ADDR=:4000 \
 ./llm-router
 ```

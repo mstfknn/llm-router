@@ -19,10 +19,10 @@ Designed to sit between Claude Code and multiple LLM backends.
 
 ```bash
 # Build
-go build -o llm-proxy .
+go build -o llm-router .
 
 # Run
-DOWNSTREAM_URL=http://localhost:8080 PROXY_ADDR=:4000 ./llm-proxy
+DOWNSTREAM_URL=http://localhost:8080 PROXY_ADDR=:4000 ./llm-router
 
 # Test
 go test -v -race ./...
