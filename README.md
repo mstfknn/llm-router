@@ -1,10 +1,18 @@
 <p align="center">
-  <img src="logo.svg" alt="llm-proxy" width="120"/>
+  <img src="logo.svg" alt="llm-router" width="120"/>
 </p>
 
-<h1 align="center">llm-proxy</h1>
+<h1 align="center">llm-router</h1>
 
 <p align="center">Minimal LLM routing proxy for Claude Code. Zero dependencies, single binary.</p>
+
+<p align="center">
+  <a href="https://github.com/mstfknn/llm-router/releases"><img src="https://img.shields.io/github/v/release/mstfknn/llm-router?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/mstfknn/llm-router/actions"><img src="https://img.shields.io/github/actions/workflow/status/mstfknn/llm-router/release.yml?style=flat-square&label=build" alt="Build"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/mstfknn/llm-router?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/dependencies-zero-success?style=flat-square" alt="Zero Dependencies">
+</p>
 
 ## Why?
 
@@ -24,7 +32,7 @@ LiteLLM's PyPI package was hit by a supply chain [attack](https://securitylabs.d
 ## Architecture
 
 ```text
-Claude Code ──→ llm-proxy (:4000)
+Claude Code ──→ llm-router (:4000)
                     │
                     ├── claude-* / anthropic/*  ──→ Anthropic API (pass-through)
                     │
@@ -162,7 +170,7 @@ make build
 make release
 
 # Or manually
-GOOS=darwin GOARCH=arm64 go build -o llm-proxy .
+GOOS=darwin GOARCH=arm64 go build -o llm-router .
 ```
 
 ## Test
@@ -193,12 +201,12 @@ go test -v -race ./...
 # Run with Ollama
 DOWNSTREAM_URL=http://localhost:11434 \
 PROXY_ADDR=:4000 \
-./llm-proxy
+./llm-router
 
 # Run with Bifrost (path prefix supported)
 DOWNSTREAM_URL=http://192.168.1.116:8080/anthropic \
 PROXY_ADDR=:4000 \
-./llm-proxy
+./llm-router
 ```
 
 ### Path prefix
@@ -219,10 +227,9 @@ curl http://localhost:4000/health
 # Metrics
 curl http://localhost:4000/metrics
 
-# Route to Anthropic
+# Route to Anthropic (Claude Code sends its own auth headers, proxy just passes them through)
 curl -X POST http://localhost:4000/v1/messages \
   -H "Content-Type: application/json" \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
   -H "anthropic-version: 2023-06-01" \
   -d '{"model":"claude-haiku-4-5-20251001","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}'
 
@@ -235,9 +242,9 @@ curl -X POST http://localhost:4000/v1/messages \
 ## Docker
 
 ```bash
-docker build -t llm-proxy .
+docker build -t llm-router .
 docker run -e DOWNSTREAM_URL=http://host.docker.internal:8080 \
-           -p 4000:4000 llm-proxy
+           -p 4000:4000 llm-router
 ```
 
 ## Releases
@@ -245,8 +252,8 @@ docker run -e DOWNSTREAM_URL=http://host.docker.internal:8080 \
 Binaries are automatically built and published via GitHub Actions when a tag is pushed:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 Pre-built binaries for macOS (Apple Silicon, Intel) and Linux (amd64, arm64) will be available on the [Releases](../../releases) page with SHA256 checksums.
@@ -257,3 +264,13 @@ Pre-built binaries for macOS (Apple Silicon, Intel) and Linux (amd64, arm64) wil
 |------------------|------------------------|--------------------------------------------------------|
 | `DOWNSTREAM_URL` | `http://localhost:8080` | Downstream provider address (Ollama, Bifrost, vLLM...) |
 | `PROXY_ADDR`     | `:4000`                | Listen port                                            |
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=mstfknn%2Fllm-router&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=mstfknn/llm-router&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=mstfknn/llm-router&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=mstfknn/llm-router&type=date&legend=top-left" />
+ </picture>
+</a>
